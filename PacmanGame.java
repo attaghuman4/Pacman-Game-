@@ -1,158 +1,141 @@
 import java.util.ArrayList;
-import java.util.Random;
+import java.util.Scanner;
 
 public class PacmanGame {
 
-    // Map
+    // Map dimensions: 19 rows (y) x 21 columns (x)
     private char[][] map;
-
-    // Pacman
     private int pacX = 1, pacY = 1;
-    private int dx = 1, dy = 0;
-
-    // Ghosts
+    private int dx = 0, dy = 0;
     private ArrayList<int[]> ghosts;
-
     private boolean gameOver = false;
 
     public PacmanGame() {
-        loadMap();
-
+        initMap();
         ghosts = new ArrayList<>();
-        ghosts.add(new int[]{10, 10});
+        // Start ghosts in the bottom right area, but safely inside walls
+        ghosts.add(new int[]{18, 17});
     }
 
-    private void loadMap() {
+    private void initMap() {
+        // map[row][col] -> map[y][x]
         map = new char[][]{
                 "#####################".toCharArray(),
-                "#........#.........#".toCharArray(),
-                "#.###.###.#.###.###.#".toCharArray(),
                 "#...................#".toCharArray(),
-                "#.###.#.#####.#.###.#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#...................#".toCharArray(),
                 "#.....#...#...#.....#".toCharArray(),
-                "#####.###.#.###.#####".toCharArray(),
-                "#.................#".toCharArray(),
-                "#.###.#####.###.#.#".toCharArray(),
-                "#.....#...#.....#.#".toCharArray(),
-                "#####.#.#.#.#####.#".toCharArray(),
-                "#.........#.......#".toCharArray(),
-                "#.###.###.#.###.###".toCharArray(),
-                "#...#.....#.....#.#".toCharArray(),
-                "###.#.#########.#.#".toCharArray(),
-                "#.....#...#...#...#".toCharArray(),
-                "#.#####.#.#.#.#####".toCharArray(),
-                "#.................#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#.....#...#.......#.#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#.........#.........#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#...#.....#.....#...#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#.....#...#...#.....#".toCharArray(),
+                "#...................#".toCharArray(),
+                "#...................#".toCharArray(),
                 "#####################".toCharArray(),
         };
     }
 
-    // Game update
+    // Helper to keep us from crashing or walking through walls
+    private boolean canMoveTo(int x, int y) {
+        if (y < 0 || y >= map.length || x < 0 || x >= map[0].length) {
+            return false;
+        }
+        return map[y][x] != '#';
+    }
+
     public void update() {
-        if (!gameOver) {
-            movePacman();
-            moveGhosts();
-            checkCollision();
+        if (gameOver) return;
 
-        }
-    }
+        // 1. Move Pacman
+        int nextPacX = pacX + dx;
+        int nextPacY = pacY + dy;
 
-    private boolean dotsRemaining() {
-        for (int i = 0; i < map.length; i++) {
-            for (int j = 0; j < map[i].length; j++) {
-                if (map[i][j] == '.') {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private void movePacman() {
-        int nextX = pacX + dx;
-        int nextY = pacY + dy;
-
-        if (nextY >= 0 && nextY < map.length &&
-                nextX >= 0 && nextX < map[0].length &&
-                map[nextY][nextX] != '#') {
-
-            pacX = nextX;
-            pacY = nextY;
-
+        if (canMoveTo(nextPacX, nextPacY)) {
+            pacX = nextPacX;
+            pacY = nextPacY;
+            // Eat the dot
             if (map[pacY][pacX] == '.') {
                 map[pacY][pacX] = ' ';
             }
         }
-    }
 
-    private void moveGhosts() {
+        // 2. Move Ghosts
         for (int[] ghost : ghosts) {
-            if (ghost[0] < pacX) ghost[0]++;
-            else if (ghost[0] > pacX) ghost[0]--;
+            int gx = ghost[0];
+            int gy = ghost[1];
 
-            if (ghost[1] < pacY) ghost[1]++;
-            else if (ghost[1] > pacY) ghost[1]--;
+            // Decide direction (Basic tracking)
+            int stepX = (pacX > gx) ? 1 : (pacX < gx ? -1 : 0);
+            int stepY = (pacY > gy) ? 1 : (pacY < gy ? -1 : 0);
+
+            // Try moving horizontally first
+            if (stepX != 0 && canMoveTo(gx + stepX, gy)) {
+                ghost[0] += stepX;
+            }
+            // If blocked or no X move needed, try vertically
+            else if (stepY != 0 && canMoveTo(gx, gy + stepY)) {
+                ghost[1] += stepY;
+            }
         }
-    }
 
-    private void checkCollision() {
+        // 3. Collision Check
         for (int[] ghost : ghosts) {
             if (ghost[0] == pacX && ghost[1] == pacY) {
                 gameOver = true;
             }
         }
-
     }
 
-    // Print game to console
-    public void printGame() {
-        char[][] display = new char[map.length][map[0].length];
+    public void draw() {
+        // Print some empty lines to "clear" the console
+        for(int i = 0; i < 10; i++) System.out.println();
 
-        // Copy map
-        for (int i = 0; i < map.length; i++) {
-            for (int j = 0; j < map[i].length; j++) {
-                display[i][j] = map[i][j];
-            }
-        }
+        for (int y = 0; y < map.length; y++) {
+            for (int x = 0; x < map[y].length; x++) {
+                // Check if ghost is here
+                boolean isGhost = false;
+                for (int[] g : ghosts) {
+                    if (g[0] == x && g[1] == y) isGhost = true;
+                }
 
-        // Place Pacman
-        display[pacY][pacX] = 'P';
-
-        // Place Ghosts
-        for (int[] ghost : ghosts) {
-            display[ghost[1]][ghost[0]] = 'G';
-        }
-
-        // Print
-        for (int i = 0; i < display.length; i++) {
-            for (int j = 0; j < display[i].length; j++) {
-                System.out.print(display[i][j]);
+                if (x == pacX && y == pacY) System.out.print('P');
+                else if (isGhost) System.out.print('G');
+                else System.out.print(map[y][x]);
             }
             System.out.println();
         }
-
-        System.out.println("----------------------");
+        System.out.println("Use W/A/S/D + Enter to move!");
     }
 
-    public boolean isGameOver() {
-        return gameOver;
-    }
-
-    // MAIN METHOD
-    public static void main(String[] args) throws InterruptedException {
-
+    public static void main(String[] args) {
         PacmanGame game = new PacmanGame();
+        Scanner input = new Scanner(System.in);
 
-        int steps = 0;
+        while (!game.gameOver) {
+            game.draw();
+            System.out.print("> ");
+            String move = input.nextLine().toLowerCase();
 
-        while (!game.isGameOver() && steps < 50) {
+            if (move.length() > 0) {
+                char c = move.charAt(0);
+                if (c == 'w') { game.dx = 0;  game.dy = -1; }
+                else if (c == 's') { game.dx = 0;  game.dy = 1;  }
+                else if (c == 'a') { game.dx = -1; game.dy = 0;  }
+                else if (c == 'd') { game.dx = 1;  game.dy = 0;  }
+            }
 
             game.update();
-            game.printGame();
-
-            Thread.sleep(300);
-            steps++;
         }
 
-        System.out.println("Game Ended!");
+        game.draw();
+        System.out.println("GAME OVER - The ghost caught you!");
+        input.close();
     }
 }
